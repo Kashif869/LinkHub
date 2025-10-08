@@ -1,7 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import LinkPage from './components/LinkPage'
-import AdminPanel from './components/AdminPanel'
+import LinkPageEnhanced from './components/LinkPageEnhanced'
+import AdminPanelEnhanced from './components/AdminPanelEnhanced'
 import './App.css'
 
 function App() {
@@ -15,6 +15,27 @@ function App() {
       backgroundImage: '',
       theme: 'modern'
     },
+    categories: [
+      {
+        id: 1,
+        name: 'Social Media',
+        color: '#3b82f6',
+        visible: true
+      },
+      {
+        id: 2,
+        name: 'Work & Projects',
+        color: '#10b981',
+        visible: true
+      },
+      {
+        id: 3,
+        name: 'Top Finds',
+        color: '#f59e0b',
+        visible: true,
+        isTopFinds: true
+      }
+    ],
     links: [
       {
         id: 1,
@@ -22,7 +43,10 @@ function App() {
         url: 'https://example.com',
         description: 'Check out my main website',
         visible: true,
-        icon: 'globe'
+        icon: 'globe',
+        categoryId: 2,
+        isTopFind: false,
+        imageUrl: ''
       },
       {
         id: 2,
@@ -30,7 +54,10 @@ function App() {
         url: 'https://instagram.com/username',
         description: 'Follow me on Instagram',
         visible: true,
-        icon: 'instagram'
+        icon: 'instagram',
+        categoryId: 1,
+        isTopFind: true,
+        imageUrl: ''
       }
     ],
     ads: {
@@ -63,12 +90,12 @@ function App() {
         <Routes>
           <Route 
             path="/" 
-            element={<LinkPage userData={userData} />} 
+            element={<LinkPageEnhanced userData={userData} />} 
           />
           <Route 
             path="/admin" 
             element={
-              <AdminPanel 
+              <AdminPanelEnhanced 
                 userData={userData} 
                 setUserData={setUserData} 
               />
