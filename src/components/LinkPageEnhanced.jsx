@@ -10,6 +10,8 @@ import ProductGrid from './ProductGrid'
 import AdUnit from './AdUnit'
 import FeaturesSection from './FeaturesSection'
 import BackToTop from './BackToTop'
+import { SocialLinks } from './SocialLinks'
+import { trackLinkClick, trackTopFindClick, trackSearch, trackCategoryFilter } from '@/utils/gaUtils'
 
 const iconMap = {
   globe: Globe,
@@ -39,24 +41,22 @@ function LinkPageEnhanced({ userData }) {
     }
   }, [])
 
-  const handleLinkClick = (linkId, url) => {
+  const handleLinkClick = (link) => {
     const newCounts = {
       ...clickCounts,
-      [linkId]: (clickCounts[linkId] || 0) + 1
+      [link.id]: (clickCounts[link.id] || 0) + 1
     }
     setClickCounts(newCounts)
     localStorage.setItem('linkClickCounts', JSON.stringify(newCounts))
-    
+
     // Track with Google Analytics if enabled
-    if (userData.analytics?.enabled && window.gtag) {
-      window.gtag('event', 'click', {
-        event_category: 'Link',
-        event_label: url,
-        value: 1
-      })
+    if (link.isTopFind) {
+      trackTopFindClick(link.title, link.url)
+    } else {
+      trackLinkClick(link.title, link.url)
     }
-    
-    window.open(url, '_blank')
+
+    window.open(link.url, '_blank')
   }
 
   const handleProductClick = (product) => {
@@ -66,19 +66,13 @@ function LinkPageEnhanced({ userData }) {
     }
     setProductClickCounts(newCounts)
     localStorage.setItem('productClickCounts', JSON.stringify(newCounts))
-
-    // Track with Google Analytics if enabled
-    if (userData.analytics?.enabled && window.gtag) {
-      window.gtag('event', 'product_click', {
-        event_category: 'Product',
-        event_label: product.title,
-        value: 1
-      })
-    }
   }
 
   const handleSearch = (term) => {
     setSearchTerm(term)
+    if (term && userData?.analytics?.enabled) {
+      trackSearch(term)
+    }
   }
 
   const handleFilterChange = (category) => {
@@ -91,6 +85,10 @@ function LinkPageEnhanced({ userData }) {
     } else {
       // Add category
       setSelectedCategories([...selectedCategories, category])
+    }
+
+    if (category && userData?.analytics?.enabled) {
+      trackCategoryFilter(category)
     }
   }
 
@@ -204,7 +202,7 @@ function LinkPageEnhanced({ userData }) {
 
   const renderLink = (link, isTopFind = false) => {
     const IconComponent = iconMap[link.icon] || ExternalLink
-    
+
     return (
       <Button
         key={link.id}
@@ -212,13 +210,13 @@ function LinkPageEnhanced({ userData }) {
         className={`w-full h-auto p-4 bg-white/20 backdrop-blur-md border-white/30 hover:bg-white/30 transition-all duration-200 group ${
           isTopFind ? 'ring-2 ring-yellow-400/50' : ''
         }`}
-        onClick={() => handleLinkClick(link.id, link.url)}
+        onClick={() => handleLinkClick(link)}
       >
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center space-x-3">
             {link.imageUrl ? (
-              <img 
-                src={link.imageUrl} 
+              <img
+                src={link.imageUrl}
                 alt={link.title}
                 className="w-8 h-8 rounded object-cover"
                 onError={(e) => {
@@ -227,8 +225,8 @@ function LinkPageEnhanced({ userData }) {
                 }}
               />
             ) : null}
-            <IconComponent 
-              className={`w-5 h-5 text-white ${link.imageUrl ? 'hidden' : ''}`} 
+            <IconComponent
+              className={`w-5 h-5 text-white ${link.imageUrl ? 'hidden' : ''}`}
             />
             <div className="text-left">
               <div className="flex items-center space-x-2">
@@ -279,14 +277,21 @@ function LinkPageEnhanced({ userData }) {
                   {userData.profile.name.charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              
+
               <h1 className="text-2xl font-bold text-white mb-2">
                 {userData.profile.name}
               </h1>
-              
-              <p className="text-white/90 text-sm">
+
+              <p className="text-white/90 text-sm mb-4">
                 {userData.profile.bio}
               </p>
+
+              {/* Social Links */}
+              {userData.socialLinks && userData.socialLinks.length > 0 && (
+                <div className="flex justify-center">
+                  <SocialLinks socialLinks={userData.socialLinks} />
+                </div>
+              )}
             </Card>
           </div>
 

@@ -1,33 +1,40 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ExternalLink, Star } from 'lucide-react'
+import { trackAffiliateLinkClick } from '@/utils/gaUtils'
 
-function ProductCard({ product, onProductClick }) {
+function ProductCard({ product, onProductClick, enableProductPages = true }) {
   const [imageLoaded, setImageLoaded] = useState(false)
   const [imageError, setImageError] = useState(false)
 
-  const handleClick = () => {
+  const handleAffiliateClick = (e) => {
+    e.stopPropagation()
+    e.preventDefault()
+
+    // Track click in localStorage
+    const clickCounts = JSON.parse(localStorage.getItem('productClickCounts') || '{}')
+    clickCounts[product.id] = (clickCounts[product.id] || 0) + 1
+    localStorage.setItem('productClickCounts', JSON.stringify(clickCounts))
+
+    // Track in Google Analytics (will be picked up if enabled)
+    trackAffiliateLinkClick(product.title, product.affiliateUrl)
+
     if (onProductClick) {
       onProductClick(product)
     }
+
     // Open affiliate link in new tab
     window.open(product.affiliateUrl, '_blank', 'noopener,noreferrer')
   }
 
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      whileHover={{ y: -4 }}
-      className="h-full"
-    >
-      <Card className="h-full overflow-hidden hover:shadow-lg transition-shadow duration-300 bg-white/20 backdrop-blur-md border-white/30">
-        <CardContent className="p-0">
+  const cardContent = (
+    <Card className="h-full overflow-hidden hover:shadow-lg transition-shadow duration-300 bg-white/20 backdrop-blur-md border-white/30">
+      <CardContent className="p-0">
           {/* Product Image */}
           <div className="relative aspect-square overflow-hidden bg-white/10">
             {!imageLoaded && !imageError && (
@@ -111,6 +118,25 @@ function ProductCard({ product, onProductClick }) {
           </div>
         </CardContent>
       </Card>
+  )
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      whileHover={{ y: -4 }}
+      className="h-full"
+    >
+      {enableProductPages ? (
+        <Link to={`/product/${product.id}`}>
+          {cardContent}
+        </Link>
+      ) : (
+        <div onClick={handleAffiliateClick} className="cursor-pointer">
+          {cardContent}
+        </div>
+      )}
     </motion.div>
   )
 }

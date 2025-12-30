@@ -1,7 +1,11 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { useState, useEffect } from 'react'
+import { Toaster } from 'sonner'
 import LinkPageEnhanced from './components/LinkPageEnhanced'
 import AdminPanelEnhanced from './components/AdminPanelEnhanced'
+import { ProductPage } from './components/ProductPage'
+import { initGA, trackPageView } from './utils/gaUtils'
+import { resetMetaTags } from './utils/metaTags'
 import './App.css'
 
 function App() {
@@ -36,6 +40,7 @@ function App() {
         isTopFinds: true
       }
     ],
+    socialLinks: [],
     links: [
       {
         id: 1,
@@ -134,24 +139,46 @@ function App() {
     localStorage.setItem('linkInBioData', JSON.stringify(userData))
   }, [userData])
 
+  // Initialize Google Analytics if enabled
+  useEffect(() => {
+    if (userData?.analytics?.enabled && userData?.analytics?.googleAnalyticsId) {
+      initGA(userData.analytics.googleAnalyticsId)
+    }
+  }, [userData?.analytics?.enabled, userData?.analytics?.googleAnalyticsId])
+
+  // Track page views
+  useEffect(() => {
+    if (userData?.analytics?.enabled) {
+      trackPageView(userData.profile.name || 'LinkHub', window.location.pathname)
+    }
+
+    // Set meta tags for the page
+    resetMetaTags(userData)
+  }, [userData?.analytics?.enabled, userData])
+
   return (
     <Router>
       <div className="min-h-screen bg-background">
         <Routes>
-          <Route 
-            path="/" 
-            element={<LinkPageEnhanced userData={userData} />} 
+          <Route
+            path="/"
+            element={<LinkPageEnhanced userData={userData} />}
           />
-          <Route 
-            path="/admin" 
+          <Route
+            path="/admin"
             element={
-              <AdminPanelEnhanced 
-                userData={userData} 
-                setUserData={setUserData} 
+              <AdminPanelEnhanced
+                userData={userData}
+                setUserData={setUserData}
               />
-            } 
+            }
+          />
+          <Route
+            path="/product/:productId"
+            element={<ProductPage userData={userData} />}
           />
         </Routes>
+        <Toaster position="top-center" />
       </div>
     </Router>
   )
