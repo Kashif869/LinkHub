@@ -1,0 +1,12 @@
+npm warn Unknown env config "python". This will stop working in the next major version of npm.
+
+> link-in-bio-tool@0.0.0 dev
+> vite
+
+7:47:11 PM [vite] (client) Re-optimizing dependencies because vite config has changed
+
+  VITE v6.3.5  ready in 781 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+  ➜  press h + enter to show help

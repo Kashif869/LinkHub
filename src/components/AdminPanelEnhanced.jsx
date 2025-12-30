@@ -8,7 +8,13 @@ import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { Trash2, Plus, Eye, EyeOff, GripVertical, BarChart3, Settings, Palette, Link as LinkIcon, Star, Folder, Edit } from 'lucide-react'
+import { 
+  Trash2, Plus, Eye, EyeOff, GripVertical, BarChart3, Settings, 
+  Palette, Link as LinkIcon, Star, Folder, ShoppingBag, DollarSign, 
+  Bell, Edit2, Save, X 
+} from 'lucide-react'
+import { AdUnitPreview } from './AdUnit'
+import { extractASIN, isAmazonUrl, validateProduct } from '@/utils/productFetcher'
 
 function AdminPanelEnhanced({ userData, setUserData }) {
   const [newLink, setNewLink] = useState({
@@ -26,6 +32,19 @@ function AdminPanelEnhanced({ userData, setUserData }) {
     color: '#3b82f6'
   })
 
+  const [newProduct, setNewProduct] = useState({
+    title: '',
+    description: '',
+    imageUrl: '',
+    affiliateUrl: '',
+    price: '',
+    category: 'General',
+    featured: false
+  })
+
+  const [editingProduct, setEditingProduct] = useState(null)
+  const [productErrors, setProductErrors] = useState([])
+
   const updateProfile = (field, value) => {
     setUserData(prev => ({
       ...prev,
@@ -36,12 +55,24 @@ function AdminPanelEnhanced({ userData, setUserData }) {
     }))
   }
 
-  const updateAds = (field, value) => {
+  const updateAnnouncement = (field, value) => {
+    setUserData(prev => ({
+      ...prev,
+      announcement: {
+        ...prev.announcement,
+        [field]: value
+      }
+    }))
+  }
+
+  const updateAdUnit = (unitId, field, value) => {
     setUserData(prev => ({
       ...prev,
       ads: {
         ...prev.ads,
-        [field]: value
+        units: prev.ads.units.map(unit =>
+          unit.id === unitId ? { ...unit, [field]: value } : unit
+        )
       }
     }))
   }
@@ -56,6 +87,7 @@ function AdminPanelEnhanced({ userData, setUserData }) {
     }))
   }
 
+  // Category Management
   const addCategory = () => {
     if (newCategory.name) {
       const category = {
@@ -90,6 +122,7 @@ function AdminPanelEnhanced({ userData, setUserData }) {
     }))
   }
 
+  // Link Management
   const addLink = () => {
     if (newLink.title && newLink.url) {
       const link = {
@@ -139,16 +172,131 @@ function AdminPanelEnhanced({ userData, setUserData }) {
     }))
   }
 
+  // Product Management
+  const addProduct = () => {
+    const validation = validateProduct(newProduct)
+    if (!validation.valid) {
+      setProductErrors(validation.errors)
+      return
+    }
+
+    const product = {
+      ...newProduct,
+      id: Date.now(),
+      visible: true,
+      clicks: 0,
+      asin: extractASIN(newProduct.affiliateUrl)
+    }
+    
+    setUserData(prev => ({
+      ...prev,
+      products: [...(prev.products || []), product]
+    }))
+    
+    setNewProduct({
+      title: '',
+      description: '',
+      imageUrl: '',
+      affiliateUrl: '',
+      price: '',
+      category: 'General',
+      featured: false
+    })
+    setProductErrors([])
+  }
+
+  const updateProduct = (id, field, value) => {
+    setUserData(prev => ({
+      ...prev,
+      products: prev.products.map(product =>
+        product.id === id ? { ...product, [field]: value } : product
+      )
+    }))
+  }
+
+  const deleteProduct = (id) => {
+    if (window.confirm('Are you sure you want to delete this product?')) {
+      setUserData(prev => ({
+        ...prev,
+        products: prev.products.filter(product => product.id !== id)
+      }))
+    }
+  }
+
+  const toggleProductVisibility = (id) => {
+    setUserData(prev => ({
+      ...prev,
+      products: prev.products.map(product =>
+        product.id === id ? { ...product, visible: !product.visible } : product
+      )
+    }))
+  }
+
+  const startEditingProduct = (product) => {
+    setEditingProduct({ ...product })
+  }
+
+  const saveEditingProduct = () => {
+    if (editingProduct) {
+      const validation = validateProduct(editingProduct)
+      if (!validation.valid) {
+        setProductErrors(validation.errors)
+        return
+      }
+
+      setUserData(prev => ({
+        ...prev,
+        products: prev.products.map(product =>
+          product.id === editingProduct.id ? editingProduct : product
+        )
+      }))
+      setEditingProduct(null)
+      setProductErrors([])
+    }
+  }
+
+  const cancelEditingProduct = () => {
+    setEditingProduct(null)
+    setProductErrors([])
+  }
+
+  const updateEditingProduct = (field, value) => {
+    setEditingProduct(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
+  // Get click counts
   const getClickCounts = () => {
     const savedCounts = localStorage.getItem('linkClickCounts')
     return savedCounts ? JSON.parse(savedCounts) : {}
   }
 
+  const getProductClickCounts = () => {
+    const savedCounts = localStorage.getItem('productClickCounts')
+    return savedCounts ? JSON.parse(savedCounts) : {}
+  }
+
   const clickCounts = getClickCounts()
+  const productClickCounts = getProductClickCounts()
+
+  // Get unique product categories
+  const getProductCategories = () => {
+    const categories = new Set(['General', 'Electronics', 'Home', 'Fashion', 'Books', 'Sports'])
+    userData.products?.forEach(product => {
+      if (product.category) {
+        categories.add(product.category)
+      }
+    })
+    return Array.from(categories)
+  }
+
+  const productCategories = getProductCategories()
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900">LinkHub Admin Panel</h1>
           <Button onClick={() => window.location.href = '/'} variant="outline">
@@ -157,30 +305,34 @@ function AdminPanelEnhanced({ userData, setUserData }) {
         </div>
 
         <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="profile" className="flex items-center gap-2">
+          <TabsList className="grid w-full grid-cols-7 h-auto">
+            <TabsTrigger value="profile" className="flex items-center gap-1 text-xs">
               <Settings className="w-4 h-4" />
-              Profile
+              <span className="hidden md:inline">Profile</span>
             </TabsTrigger>
-            <TabsTrigger value="categories" className="flex items-center gap-2">
+            <TabsTrigger value="categories" className="flex items-center gap-1 text-xs">
               <Folder className="w-4 h-4" />
-              Categories
+              <span className="hidden md:inline">Categories</span>
             </TabsTrigger>
-            <TabsTrigger value="links" className="flex items-center gap-2">
+            <TabsTrigger value="links" className="flex items-center gap-1 text-xs">
               <LinkIcon className="w-4 h-4" />
-              Links
+              <span className="hidden md:inline">Links</span>
             </TabsTrigger>
-            <TabsTrigger value="appearance" className="flex items-center gap-2">
+            <TabsTrigger value="products" className="flex items-center gap-1 text-xs">
+              <ShoppingBag className="w-4 h-4" />
+              <span className="hidden md:inline">Products</span>
+            </TabsTrigger>
+            <TabsTrigger value="appearance" className="flex items-center gap-1 text-xs">
               <Palette className="w-4 h-4" />
-              Appearance
+              <span className="hidden md:inline">Appearance</span>
             </TabsTrigger>
-            <TabsTrigger value="monetization" className="flex items-center gap-2">
-              💰
-              Monetization
+            <TabsTrigger value="ads" className="flex items-center gap-1 text-xs">
+              <DollarSign className="w-4 h-4" />
+              <span className="hidden md:inline">Ads</span>
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="flex items-center gap-2">
+            <TabsTrigger value="analytics" className="flex items-center gap-1 text-xs">
               <BarChart3 className="w-4 h-4" />
-              Analytics
+              <span className="hidden md:inline">Analytics</span>
             </TabsTrigger>
           </TabsList>
 
@@ -289,7 +441,7 @@ function AdminPanelEnhanced({ userData, setUserData }) {
                               {!category.visible && <Badge variant="secondary">Hidden</Badge>}
                             </div>
                             <p className="text-sm text-gray-500">
-                              {userData.links.filter(link => link.categoryId === category.id).length} links
+                              {userData.links?.filter(link => link.categoryId === category.id).length || 0} links
                             </p>
                           </div>
                         </div>
@@ -430,7 +582,7 @@ function AdminPanelEnhanced({ userData, setUserData }) {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {userData.links.map((link) => {
+                    {userData.links?.map((link) => {
                       const category = userData.categories?.find(cat => cat.id === link.categoryId)
                       return (
                         <div key={link.id} className="flex items-center justify-between p-4 border rounded-lg">
@@ -494,115 +646,563 @@ function AdminPanelEnhanced({ userData, setUserData }) {
             </div>
           </TabsContent>
 
-          {/* Appearance Tab */}
-          <TabsContent value="appearance">
-            <Card>
-              <CardHeader>
-                <CardTitle>Appearance Settings</CardTitle>
-                <CardDescription>
-                  Customize the look and feel of your page
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="background-type">Background Type</Label>
-                  <Select
-                    value={userData.profile.backgroundType}
-                    onValueChange={(value) => updateProfile('backgroundType', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="gradient">Gradient</SelectItem>
-                      <SelectItem value="color">Solid Color</SelectItem>
-                      <SelectItem value="image">Image</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                {userData.profile.backgroundType !== 'image' && (
-                  <div>
-                    <Label htmlFor="background-color">Background Color</Label>
-                    <Input
-                      id="background-color"
-                      type="color"
-                      value={userData.profile.backgroundColor}
-                      onChange={(e) => updateProfile('backgroundColor', e.target.value)}
-                    />
-                  </div>
-                )}
-                
-                {userData.profile.backgroundType === 'image' && (
-                  <div>
-                    <Label htmlFor="background-image">Background Image URL</Label>
-                    <Input
-                      id="background-image"
-                      value={userData.profile.backgroundImage}
-                      onChange={(e) => updateProfile('backgroundImage', e.target.value)}
-                      placeholder="https://example.com/background.jpg"
-                    />
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Monetization Tab */}
-          <TabsContent value="monetization">
-            <Card>
-              <CardHeader>
-                <CardTitle>Monetization Settings</CardTitle>
-                <CardDescription>
-                  Configure advertising and monetization options
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="ads-enabled"
-                    checked={userData.ads.enabled}
-                    onCheckedChange={(checked) => updateAds('enabled', checked)}
-                  />
-                  <Label htmlFor="ads-enabled">Enable Advertisements</Label>
-                </div>
-                
-                {userData.ads.enabled && (
-                  <>
+          {/* Products Tab */}
+          <TabsContent value="products">
+            <div className="space-y-6">
+              {/* Add New Product */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Add Amazon Affiliate Product</CardTitle>
+                  <CardDescription>
+                    Add products from Amazon to showcase on your page
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {productErrors.length > 0 && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-sm font-medium text-red-800 mb-1">Please fix the following errors:</p>
+                      <ul className="text-sm text-red-600 list-disc list-inside">
+                        {productErrors.map((error, i) => (
+                          <li key={i}>{error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                      <Label htmlFor="product-url">Amazon Affiliate URL *</Label>
+                      <Input
+                        id="product-url"
+                        value={newProduct.affiliateUrl}
+                        onChange={(e) => setNewProduct(prev => ({ ...prev, affiliateUrl: e.target.value }))}
+                        placeholder="https://amazon.com/dp/XXXXXXXXXX"
+                        className={!isAmazonUrl(newProduct.affiliateUrl) && newProduct.affiliateUrl ? 'border-red-300' : ''}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Paste your Amazon affiliate link here (must include your affiliate tag)
+                      </p>
+                    </div>
+                    
                     <div>
-                      <Label htmlFor="ad-placement">Ad Placement</Label>
+                      <Label htmlFor="product-title">Product Title *</Label>
+                      <Input
+                        id="product-title"
+                        value={newProduct.title}
+                        onChange={(e) => setNewProduct(prev => ({ ...prev, title: e.target.value }))}
+                        placeholder="Product Name"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="product-price">Price (Optional)</Label>
+                      <Input
+                        id="product-price"
+                        value={newProduct.price}
+                        onChange={(e) => setNewProduct(prev => ({ ...prev, price: e.target.value }))}
+                        placeholder="$29.99"
+                      />
+                    </div>
+                    
+                    <div className="md:col-span-2">
+                      <Label htmlFor="product-description">Description</Label>
+                      <Textarea
+                        id="product-description"
+                        value={newProduct.description}
+                        onChange={(e) => setNewProduct(prev => ({ ...prev, description: e.target.value }))}
+                        placeholder="Brief description of the product"
+                        rows={2}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="product-image">Product Image URL</Label>
+                      <Input
+                        id="product-image"
+                        value={newProduct.imageUrl}
+                        onChange={(e) => setNewProduct(prev => ({ ...prev, imageUrl: e.target.value }))}
+                        placeholder="https://example.com/image.jpg"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="product-category">Category</Label>
                       <Select
-                        value={userData.ads.placement}
-                        onValueChange={(value) => updateAds('placement', value)}
+                        value={newProduct.category}
+                        onValueChange={(value) => setNewProduct(prev => ({ ...prev, category: value }))}
                       >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="top">Top of Page</SelectItem>
-                          <SelectItem value="middle">Middle of Page</SelectItem>
-                          <SelectItem value="bottom">Bottom of Page</SelectItem>
+                          {productCategories.map(cat => (
+                            <SelectItem key={cat} value={cat}>
+                              {cat}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
-                    
-                    <div>
-                      <Label htmlFor="ad-code">Ad Code</Label>
-                      <Textarea
-                        id="ad-code"
-                        value={userData.ads.adCode}
-                        onChange={(e) => updateAds('adCode', e.target.value)}
-                        placeholder="Paste your ad network code here (e.g., Google AdSense code)"
-                        rows={6}
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Paste the complete ad code from your ad network (Google AdSense, Media.net, etc.)
+                  </div>
+                  
+                  <div className="flex items-center space-x-2 mt-4">
+                    <Switch
+                      id="product-featured"
+                      checked={newProduct.featured}
+                      onCheckedChange={(checked) => setNewProduct(prev => ({ ...prev, featured: checked }))}
+                    />
+                    <Label htmlFor="product-featured">Mark as Featured Product</Label>
+                  </div>
+                  
+                  <Button onClick={addProduct} className="mt-4">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Product
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Existing Products */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Your Products</CardTitle>
+                  <CardDescription>
+                    Manage your Amazon affiliate products
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {userData.products?.length === 0 && (
+                      <p className="text-center text-gray-500 py-8">
+                        No products yet. Add your first Amazon product above!
                       </p>
+                    )}
+                    {userData.products?.map((product) => (
+                      <div key={product.id} className="border rounded-lg overflow-hidden">
+                        {editingProduct?.id === product.id ? (
+                          // Edit Mode
+                          <div className="p-4 bg-blue-50">
+                            {productErrors.length > 0 && (
+                              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                                <p className="text-sm font-medium text-red-800 mb-1">Please fix the following errors:</p>
+                                <ul className="text-sm text-red-600 list-disc list-inside">
+                                  {productErrors.map((error, i) => (
+                                    <li key={i}>{error}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                              <div>
+                                <Label>Product Title</Label>
+                                <Input
+                                  value={editingProduct.title}
+                                  onChange={(e) => updateEditingProduct('title', e.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <Label>Price</Label>
+                                <Input
+                                  value={editingProduct.price}
+                                  onChange={(e) => updateEditingProduct('price', e.target.value)}
+                                />
+                              </div>
+                              <div className="md:col-span-2">
+                                <Label>Amazon URL</Label>
+                                <Input
+                                  value={editingProduct.affiliateUrl}
+                                  onChange={(e) => updateEditingProduct('affiliateUrl', e.target.value)}
+                                />
+                              </div>
+                              <div className="md:col-span-2">
+                                <Label>Description</Label>
+                                <Textarea
+                                  value={editingProduct.description}
+                                  onChange={(e) => updateEditingProduct('description', e.target.value)}
+                                  rows={2}
+                                />
+                              </div>
+                              <div>
+                                <Label>Image URL</Label>
+                                <Input
+                                  value={editingProduct.imageUrl}
+                                  onChange={(e) => updateEditingProduct('imageUrl', e.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <Label>Category</Label>
+                                <Select
+                                  value={editingProduct.category}
+                                  onValueChange={(value) => updateEditingProduct('category', value)}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {productCategories.map(cat => (
+                                      <SelectItem key={cat} value={cat}>
+                                        {cat}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-2">
+                                <Switch
+                                  checked={editingProduct.featured}
+                                  onCheckedChange={(checked) => updateEditingProduct('featured', checked)}
+                                />
+                                <Label>Featured</Label>
+                              </div>
+                              <div className="flex space-x-2">
+                                <Button onClick={saveEditingProduct} size="sm">
+                                  <Save className="w-4 h-4 mr-1" />
+                                  Save
+                                </Button>
+                                <Button onClick={cancelEditingProduct} variant="outline" size="sm">
+                                  <X className="w-4 h-4 mr-1" />
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          // View Mode
+                          <div className="flex items-start p-4">
+                            {product.imageUrl && (
+                              <img 
+                                src={product.imageUrl} 
+                                alt={product.title}
+                                className="w-20 h-20 object-cover rounded mr-4"
+                                onError={(e) => e.target.style.display = 'none'}
+                              />
+                            )}
+                            <div className="flex-1">
+                              <div className="flex items-start justify-between">
+                                <div>
+                                  <div className="flex items-center space-x-2 mb-1">
+                                    <h3 className="font-medium">{product.title}</h3>
+                                    {product.featured && <Star className="w-4 h-4 text-yellow-500 fill-current" />}
+                                    {!product.visible && <Badge variant="secondary">Hidden</Badge>}
+                                    <Badge variant="outline">{product.category}</Badge>
+                                    {productClickCounts[product.id] > 0 && (
+                                      <Badge variant="outline">
+                                        {productClickCounts[product.id]} clicks
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  {product.price && (
+                                    <p className="text-lg font-bold text-green-600 mb-1">{product.price}</p>
+                                  )}
+                                  {product.description && (
+                                    <p className="text-sm text-gray-600 mb-2">{product.description}</p>
+                                  )}
+                                  <p className="text-xs text-gray-400 truncate max-w-md">
+                                    {product.affiliateUrl}
+                                  </p>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => startEditingProduct(product)}
+                                  >
+                                    <Edit2 className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => updateProduct(product.id, 'featured', !product.featured)}
+                                    title={product.featured ? 'Remove from featured' : 'Mark as featured'}
+                                  >
+                                    <Star className={`w-4 h-4 ${product.featured ? 'text-yellow-500 fill-current' : 'text-gray-400'}`} />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => toggleProductVisibility(product.id)}
+                                  >
+                                    {product.visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => deleteProduct(product.id)}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Appearance Tab */}
+          <TabsContent value="appearance">
+            <div className="space-y-6">
+              {/* Background Settings */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Appearance Settings</CardTitle>
+                  <CardDescription>
+                    Customize the look and feel of your page
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label htmlFor="background-type">Background Type</Label>
+                    <Select
+                      value={userData.profile.backgroundType}
+                      onValueChange={(value) => updateProfile('backgroundType', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="gradient">Gradient</SelectItem>
+                        <SelectItem value="color">Solid Color</SelectItem>
+                        <SelectItem value="image">Image</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {userData.profile.backgroundType !== 'image' && (
+                    <div>
+                      <Label htmlFor="background-color">Background Color</Label>
+                      <Input
+                        id="background-color"
+                        type="color"
+                        value={userData.profile.backgroundColor}
+                        onChange={(e) => updateProfile('backgroundColor', e.target.value)}
+                      />
                     </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
+                  )}
+                  
+                  {userData.profile.backgroundType === 'image' && (
+                    <div>
+                      <Label htmlFor="background-image">Background Image URL</Label>
+                      <Input
+                        id="background-image"
+                        value={userData.profile.backgroundImage}
+                        onChange={(e) => updateProfile('backgroundImage', e.target.value)}
+                        placeholder="https://example.com/background.jpg"
+                      />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Announcement Bar */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>
+                    <Bell className="w-5 h-5 inline mr-2" />
+                    Announcement Bar
+                  </CardTitle>
+                  <CardDescription>
+                    Display a sticky announcement bar at the top of your page
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="announcement-enabled"
+                      checked={userData.announcement?.enabled || false}
+                      onCheckedChange={(checked) => updateAnnouncement('enabled', checked)}
+                    />
+                    <Label htmlFor="announcement-enabled">Enable Announcement Bar</Label>
+                  </div>
+                  
+                  {userData.announcement?.enabled && (
+                    <>
+                      <div>
+                        <Label htmlFor="announcement-text">Announcement Text</Label>
+                        <Input
+                          id="announcement-text"
+                          value={userData.announcement.text}
+                          onChange={(e) => updateAnnouncement('text', e.target.value)}
+                          placeholder="🎉 Check out our new products!"
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="announcement-bg">Background Color</Label>
+                          <Input
+                            id="announcement-bg"
+                            type="color"
+                            value={userData.announcement.backgroundColor}
+                            onChange={(e) => updateAnnouncement('backgroundColor', e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="announcement-color">Text Color</Label>
+                          <Input
+                            id="announcement-color"
+                            type="color"
+                            value={userData.announcement.color}
+                            onChange={(e) => updateAnnouncement('color', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="announcement-link">Link (Optional)</Label>
+                        <Input
+                          id="announcement-link"
+                          value={userData.announcement.link}
+                          onChange={(e) => updateAnnouncement('link', e.target.value)}
+                          placeholder="https://example.com/promotion"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Add a link to make the announcement clickable
+                        </p>
+                      </div>
+                      
+                      {/* Preview */}
+                      <div>
+                        <Label>Preview</Label>
+                        <div 
+                          className="mt-2 p-3 rounded-lg text-center font-medium"
+                          style={{
+                            backgroundColor: userData.announcement.backgroundColor,
+                            color: userData.announcement.color
+                          }}
+                        >
+                          {userData.announcement.text || 'Your announcement will appear here'}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Ad Settings Tab */}
+          <TabsContent value="ads">
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Advertisement Settings</CardTitle>
+                  <CardDescription>
+                    Configure ad placements on your page (Google AdSense, Media.net, etc.)
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+
+              {/* Top Ad Unit */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Top Ad Unit</CardTitle>
+                  <CardDescription>
+                    Displays at the top of your page, after the announcement bar
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      checked={userData.ads?.units?.find(u => u.id === 'top')?.enabled || false}
+                      onCheckedChange={(checked) => updateAdUnit('top', 'enabled', checked)}
+                    />
+                    <Label>Enable Top Ad</Label>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="ad-top-code">Ad Code</Label>
+                    <Textarea
+                      id="ad-top-code"
+                      value={userData.ads?.units?.find(u => u.id === 'top')?.code || ''}
+                      onChange={(e) => updateAdUnit('top', 'code', e.target.value)}
+                      placeholder="Paste your ad network code here"
+                      rows={6}
+                      className="font-mono text-xs"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Paste the complete ad code from your ad network
+                    </p>
+                  </div>
+                  
+                  <AdUnitPreview code={userData.ads?.units?.find(u => u.id === 'top')?.code || ''} />
+                </CardContent>
+              </Card>
+
+              {/* Middle Ad Unit */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Middle Ad Unit</CardTitle>
+                  <CardDescription>
+                    Displays in the middle of your content
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      checked={userData.ads?.units?.find(u => u.id === 'middle')?.enabled || false}
+                      onCheckedChange={(checked) => updateAdUnit('middle', 'enabled', checked)}
+                    />
+                    <Label>Enable Middle Ad</Label>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="ad-middle-code">Ad Code</Label>
+                    <Textarea
+                      id="ad-middle-code"
+                      value={userData.ads?.units?.find(u => u.id === 'middle')?.code || ''}
+                      onChange={(e) => updateAdUnit('middle', 'code', e.target.value)}
+                      placeholder="Paste your ad network code here"
+                      rows={6}
+                      className="font-mono text-xs"
+                    />
+                  </div>
+                  
+                  <AdUnitPreview code={userData.ads?.units?.find(u => u.id === 'middle')?.code || ''} />
+                </CardContent>
+              </Card>
+
+              {/* Bottom Ad Unit */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Bottom Ad Unit</CardTitle>
+                  <CardDescription>
+                    Displays at the bottom of your page
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      checked={userData.ads?.units?.find(u => u.id === 'bottom')?.enabled || false}
+                      onCheckedChange={(checked) => updateAdUnit('bottom', 'enabled', checked)}
+                    />
+                    <Label>Enable Bottom Ad</Label>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="ad-bottom-code">Ad Code</Label>
+                    <Textarea
+                      id="ad-bottom-code"
+                      value={userData.ads?.units?.find(u => u.id === 'bottom')?.code || ''}
+                      onChange={(e) => updateAdUnit('bottom', 'code', e.target.value)}
+                      placeholder="Paste your ad network code here"
+                      rows={6}
+                      className="font-mono text-xs"
+                    />
+                  </div>
+                  
+                  <AdUnitPreview code={userData.ads?.units?.find(u => u.id === 'bottom')?.code || ''} />
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* Analytics Tab */}
@@ -619,13 +1219,13 @@ function AdminPanelEnhanced({ userData, setUserData }) {
                   <div className="flex items-center space-x-2">
                     <Switch
                       id="analytics-enabled"
-                      checked={userData.analytics.enabled}
+                      checked={userData.analytics?.enabled || false}
                       onCheckedChange={(checked) => updateAnalytics('enabled', checked)}
                     />
                     <Label htmlFor="analytics-enabled">Enable Google Analytics</Label>
                   </div>
                   
-                  {userData.analytics.enabled && (
+                  {userData.analytics?.enabled && (
                     <div>
                       <Label htmlFor="ga-id">Google Analytics ID</Label>
                       <Input
@@ -639,6 +1239,7 @@ function AdminPanelEnhanced({ userData, setUserData }) {
                 </CardContent>
               </Card>
 
+              {/* Link Performance */}
               <Card>
                 <CardHeader>
                   <CardTitle>Link Performance</CardTitle>
@@ -648,7 +1249,7 @@ function AdminPanelEnhanced({ userData, setUserData }) {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {userData.links.map((link) => {
+                    {userData.links?.map((link) => {
                       const category = userData.categories?.find(cat => cat.id === link.categoryId)
                       return (
                         <div key={link.id} className="flex justify-between items-center p-3 border rounded">
@@ -673,6 +1274,53 @@ function AdminPanelEnhanced({ userData, setUserData }) {
                         </div>
                       )
                     })}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Product Performance */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Product Performance</CardTitle>
+                  <CardDescription>
+                    View click statistics for your affiliate products
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {userData.products?.length === 0 ? (
+                      <p className="text-center text-gray-500 py-4">
+                        No products yet. Add products to see their performance.
+                      </p>
+                    ) : (
+                      userData.products?.map((product) => (
+                        <div key={product.id} className="flex justify-between items-center p-3 border rounded">
+                          <div className="flex items-center space-x-3">
+                            {product.imageUrl && (
+                              <img 
+                                src={product.imageUrl} 
+                                alt={product.title}
+                                className="w-12 h-12 object-cover rounded"
+                                onError={(e) => e.target.style.display = 'none'}
+                              />
+                            )}
+                            <div>
+                              <div className="flex items-center space-x-2">
+                                <h4 className="font-medium">{product.title}</h4>
+                                {product.featured && <Star className="w-4 h-4 text-yellow-500 fill-current" />}
+                                <Badge variant="outline">{product.category}</Badge>
+                              </div>
+                              {product.price && (
+                                <p className="text-sm text-green-600 font-medium">{product.price}</p>
+                              )}
+                            </div>
+                          </div>
+                          <Badge variant="outline">
+                            {productClickCounts[product.id] || 0} clicks
+                          </Badge>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </CardContent>
               </Card>
