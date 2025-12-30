@@ -60,10 +60,60 @@ function App() {
         imageUrl: ''
       }
     ],
+    products: [
+      {
+        id: 1,
+        title: 'Sample Amazon Product',
+        description: 'Great quality product from Amazon',
+        imageUrl: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400',
+        affiliateUrl: 'https://amazon.com/dp/example',
+        price: '$29.99',
+        category: 'Electronics',
+        featured: true,
+        clicks: 0,
+        visible: true
+      },
+      {
+        id: 2,
+        title: 'Another Great Product',
+        description: 'Highly recommended item',
+        imageUrl: 'https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=400',
+        affiliateUrl: 'https://amazon.com/dp/example2',
+        price: '$49.99',
+        category: 'Home',
+        featured: false,
+        clicks: 0,
+        visible: true
+      }
+    ],
     ads: {
+      units: [
+        {
+          id: 'top',
+          code: '',
+          enabled: false,
+          position: 'top'
+        },
+        {
+          id: 'middle',
+          code: '',
+          enabled: false,
+          position: 'middle'
+        },
+        {
+          id: 'bottom',
+          code: '',
+          enabled: false,
+          position: 'bottom'
+        }
+      ]
+    },
+    announcement: {
+      text: '',
+      color: '#000000',
+      backgroundColor: '#fbbf24',
       enabled: false,
-      adCode: '',
-      placement: 'bottom'
+      link: ''
     },
     analytics: {
       googleAnalyticsId: '',
