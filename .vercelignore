@@ -1,0 +1,46 @@
+# Ignore development files
+node_modules
+.git
+.gitignore
+README.md
+*.log
+
+# Ignore deployment documentation (not needed in production)
+DEPLOYMENT.md
+QUICK-DEPLOY.md
+DEPLOYMENT-CHECKLIST.md
+DEPLOYMENT-SUMMARY.md
+
+# Ignore scripts
+deploy.sh
+
+# Ignore development environment files
+.env
+.env.local
+.env.*.local
+
+# Ignore build cache
+.vite
+.cache
+
+# Ignore IDE files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Ignore test files
+**/*.test.js
+**/*.test.jsx
+**/*.spec.js
+**/*.spec.jsx
+__tests__
+coverage
+
+# Ignore miscellaneous files
+dev.log
