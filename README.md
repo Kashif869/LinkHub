@@ -2,6 +2,20 @@
 
 A powerful, customizable, and monetizable link-in-bio solution built with React. Now featuring **Categories System** and **Top Finds** for professional content organization.
 
+## 🚀 Ready for Deployment
+
+This project is **production-ready** and pre-configured for Vercel deployment:
+
+- ✅ `vercel.json` configuration included
+- ✅ SPA routing configured
+- ✅ Production build optimized
+- ✅ See [DEPLOYMENT.md](./DEPLOYMENT.md) for complete deployment guide
+
+**Deploy to Vercel in 3 steps:**
+1. Push code to GitHub
+2. Import repository in Vercel
+3. Click Deploy - Get live URL in 1-2 minutes!
+
 ## ✨ Enhanced Features
 
 ### 🗂️ Categories System
@@ -90,13 +104,48 @@ pnpm run build
 
 ## 🌐 Deployment
 
-### Recommended Hosting Platforms
+### 🚀 Deploy to Vercel (Recommended)
 
-**Static Site Hosts** (Recommended):
+LinkHub is pre-configured for seamless Vercel deployment:
+
+1. **Push your code to GitHub**
+2. **Import to Vercel** - Vercel auto-detects Vite configuration
+3. **Deploy instantly** - Get a live URL in 1-2 minutes
+
+**Detailed Deployment Guide:** See [DEPLOYMENT.md](./DEPLOYMENT.md) for complete step-by-step instructions, including:
+- Pre-deployment checklist
+- Environment variable setup
+- Custom domain configuration
+- Troubleshooting common issues
+- Post-deployment setup guide
+
+### Quick Deploy Commands
+
+```bash
+# Build for production
+npm run build
+
+# Test production build locally
+npm run preview
+
+# Deploy to Vercel (requires Vercel CLI)
+npm i -g vercel
+vercel
+```
+
+### Alternative Hosting Platforms
+
+**Static Site Hosts:**
 - **Netlify**: Automatic deployments, custom domains, global CDN
-- **Vercel**: Excellent developer experience, instant deployments
 - **GitHub Pages**: Free hosting directly from your repository
 - **Cloudflare Pages**: Global performance with edge computing
+
+### Deployment Requirements
+
+- ✅ `vercel.json` configuration file included
+- ✅ SPA routing configured
+- ✅ Production build optimized
+- ✅ Zero configuration needed on Vercel
 
 ## 🎯 Roadmap
 
