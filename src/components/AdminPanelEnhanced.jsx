@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -8,15 +9,34 @@ import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { 
-  Trash2, Plus, Eye, EyeOff, GripVertical, BarChart3, Settings, 
-  Palette, Link as LinkIcon, Star, Folder, ShoppingBag, DollarSign, 
-  Bell, Edit2, Save, X 
+import {
+  Trash2, Plus, Eye, EyeOff, GripVertical, BarChart3, Settings,
+  Palette, Link as LinkIcon, Star, Folder, ShoppingBag, DollarSign,
+  Bell, Edit2, Save, X, LogOut, RefreshCw, AlertTriangle, Instagram,
+  Twitter, Youtube, Linkedin, Facebook
 } from 'lucide-react'
 import { AdUnitPreview } from './AdUnit'
+import { AdminLoginModal } from './AdminLoginModal'
 import { extractASIN, isAmazonUrl, validateProduct } from '@/utils/productFetcher'
+import {
+  isAuthenticated as checkAuth,
+  logout,
+  getRemainingSessionTime,
+  extendSession,
+  setAdminPassword,
+  getAdminPasswordHash
+} from '@/utils/authUtils'
 
 function AdminPanelEnhanced({ userData, setUserData }) {
+  const navigate = useNavigate()
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [showLoginModal, setShowLoginModal] = useState(false)
+  const [showSessionWarning, setShowSessionWarning] = useState(false)
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false)
+  const [remainingTime, setRemainingTime] = useState(0)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordError, setPasswordError] = useState('')
   const [newLink, setNewLink] = useState({
     title: '',
     url: '',
@@ -25,6 +45,11 @@ function AdminPanelEnhanced({ userData, setUserData }) {
     categoryId: '',
     isTopFind: false,
     imageUrl: ''
+  })
+
+  const [newSocialLink, setNewSocialLink] = useState({
+    platform: 'instagram',
+    url: ''
   })
 
   const [newCategory, setNewCategory] = useState({
@@ -44,6 +69,79 @@ function AdminPanelEnhanced({ userData, setUserData }) {
 
   const [editingProduct, setEditingProduct] = useState(null)
   const [productErrors, setProductErrors] = useState([])
+
+  // Authentication & Session Management
+  useEffect(() => {
+    const checkAuthStatus = () => {
+      const authed = checkAuth()
+      setIsLoggedIn(authed)
+      if (!authed) {
+        setShowLoginModal(true)
+      }
+    }
+    checkAuthStatus()
+  }, [])
+
+  useEffect(() => {
+    if (!isLoggedIn) return
+
+    const timer = setInterval(() => {
+      const timeLeft = getRemainingSessionTime()
+      setRemainingTime(timeLeft)
+
+      if (timeLeft <= 5 * 60 * 1000 && timeLeft > 0) {
+        setShowSessionWarning(true)
+      } else if (timeLeft === 0) {
+        handleLogout()
+      }
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [isLoggedIn])
+
+  const handleLoginSuccess = () => {
+    setIsLoggedIn(true)
+    setShowLoginModal(false)
+  }
+
+  const handleLogout = () => {
+    logout()
+    setIsLoggedIn(false)
+    setShowSessionWarning(false)
+    navigate('/')
+  }
+
+  const handleExtendSession = () => {
+    extendSession()
+    setShowSessionWarning(false)
+    setRemainingTime(30 * 60 * 1000)
+  }
+
+  const handleAuthActivity = () => {
+    if (isLoggedIn) {
+      extendSession()
+    }
+  }
+
+  const handleChangePassword = async () => {
+    setPasswordError('')
+    if (newPassword.length < 6) {
+      setPasswordError('Password must be at least 6 characters')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Passwords do not match')
+      return
+    }
+    try {
+      await setAdminPassword(newPassword)
+      setNewPassword('')
+      setConfirmPassword('')
+      setShowChangePasswordModal(false)
+    } catch (error) {
+      setPasswordError('Failed to change password')
+    }
+  }
 
   const updateProfile = (field, value) => {
     setUserData(prev => ({
@@ -169,6 +267,28 @@ function AdminPanelEnhanced({ userData, setUserData }) {
       links: prev.links.map(link =>
         link.id === id ? { ...link, visible: !link.visible } : link
       )
+    }))
+  }
+
+  // Social Links Management
+  const addSocialLink = () => {
+    if (newSocialLink.platform && newSocialLink.url) {
+      const socialLink = {
+        ...newSocialLink,
+        id: Date.now()
+      }
+      setUserData(prev => ({
+        ...prev,
+        socialLinks: [...(prev.socialLinks || []), socialLink]
+      }))
+      setNewSocialLink({ platform: 'instagram', url: '' })
+    }
+  }
+
+  const deleteSocialLink = (id) => {
+    setUserData(prev => ({
+      ...prev,
+      socialLinks: prev.socialLinks.filter(link => link.id !== id)
     }))
   }
 
@@ -298,13 +418,34 @@ function AdminPanelEnhanced({ userData, setUserData }) {
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">LinkHub Admin Panel</h1>
-          <Button onClick={() => window.location.href = '/'} variant="outline">
-            View Public Page
-          </Button>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">LinkHub Admin Panel</h1>
+            {isLoggedIn && (
+              <p className="text-sm text-gray-500 mt-1">
+                Session expires in {Math.floor(remainingTime / 60000)}:{String(Math.floor((remainingTime % 60000) / 1000)).padStart(2, '0')}
+              </p>
+            )}
+          </div>
+          <div className="flex gap-2">
+            {isLoggedIn && (
+              <>
+                <Button onClick={() => setShowChangePasswordModal(true)} variant="outline" size="sm">
+                  Change Password
+                </Button>
+                <Button onClick={handleLogout} variant="outline" size="sm">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </Button>
+              </>
+            )}
+            <Button onClick={() => window.location.href = '/'} variant="outline">
+              View Public Page
+            </Button>
+          </div>
         </div>
 
-        <Tabs defaultValue="profile" className="space-y-6">
+        {isLoggedIn ? (
+          <Tabs defaultValue="profile" className="space-y-6" onValueChange={handleAuthActivity}>
           <TabsList className="grid w-full grid-cols-7 h-auto">
             <TabsTrigger value="profile" className="flex items-center gap-1 text-xs">
               <Settings className="w-4 h-4" />
@@ -374,11 +515,124 @@ function AdminPanelEnhanced({ userData, setUserData }) {
                     placeholder="https://example.com/avatar.jpg"
                   />
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                </CardContent>
 
-          {/* Categories Tab */}
+                {/* Social Links */}
+                <Card className="mt-6">
+                <CardHeader>
+                 <CardTitle>Social Media Links</CardTitle>
+                 <CardDescription>
+                   Add your social media profiles for visitors to connect
+                 </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                 {/* Add New Social Link */}
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                   <div>
+                     <Label htmlFor="social-platform">Platform</Label>
+                     <Select
+                       value={newSocialLink.platform}
+                       onValueChange={(value) => setNewSocialLink(prev => ({ ...prev, platform: value }))}
+                     >
+                       <SelectTrigger>
+                         <SelectValue />
+                       </SelectTrigger>
+                       <SelectContent>
+                         <SelectItem value="instagram">
+                           <div className="flex items-center gap-2">
+                             <Instagram className="w-4 h-4 text-[#E4405F]" />
+                             Instagram
+                           </div>
+                         </SelectItem>
+                         <SelectItem value="twitter">
+                           <div className="flex items-center gap-2">
+                             <Twitter className="w-4 h-4 text-[#1DA1F2]" />
+                             Twitter
+                           </div>
+                         </SelectItem>
+                         <SelectItem value="youtube">
+                           <div className="flex items-center gap-2">
+                             <Youtube className="w-4 h-4 text-[#FF0000]" />
+                             YouTube
+                           </div>
+                         </SelectItem>
+                         <SelectItem value="linkedin">
+                           <div className="flex items-center gap-2">
+                             <Linkedin className="w-4 h-4 text-[#0A66C2]" />
+                             LinkedIn
+                           </div>
+                         </SelectItem>
+                         <SelectItem value="facebook">
+                           <div className="flex items-center gap-2">
+                             <Facebook className="w-4 h-4 text-[#1877F2]" />
+                             Facebook
+                           </div>
+                         </SelectItem>
+                       </SelectContent>
+                     </Select>
+                   </div>
+                   <div>
+                     <Label htmlFor="social-url">Profile URL</Label>
+                     <Input
+                       id="social-url"
+                       value={newSocialLink.url}
+                       onChange={(e) => setNewSocialLink(prev => ({ ...prev, url: e.target.value }))}
+                       placeholder="https://instagram.com/username"
+                     />
+                   </div>
+                 </div>
+                 <Button onClick={addSocialLink}>
+                   <Plus className="w-4 h-4 mr-2" />
+                   Add Social Link
+                 </Button>
+
+                 {/* Existing Social Links */}
+                 {userData.socialLinks && userData.socialLinks.length > 0 && (
+                   <div className="space-y-2 mt-4 pt-4 border-t">
+                     <Label>Your Social Links</Label>
+                     {userData.socialLinks.map((link) => {
+                       const icons = {
+                         instagram: Instagram,
+                         twitter: Twitter,
+                         youtube: Youtube,
+                         linkedin: Linkedin,
+                         facebook: Facebook,
+                       }
+                       const Icon = icons[link.platform] || Instagram
+                       return (
+                         <div
+                           key={link.id}
+                           className="flex items-center justify-between p-3 border rounded-lg"
+                         >
+                           <div className="flex items-center space-x-3">
+                             <Icon className="w-5 h-5" />
+                             <span className="capitalize font-medium">{link.platform}</span>
+                             <a
+                               href={link.url}
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               className="text-sm text-gray-500 hover:text-gray-700"
+                             >
+                               {link.url}
+                             </a>
+                           </div>
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             onClick={() => deleteSocialLink(link.id)}
+                           >
+                             <Trash2 className="w-4 h-4 text-red-500" />
+                           </Button>
+                         </div>
+                       )
+                     })}
+                   </div>
+                 )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Categories Tab */}
           <TabsContent value="categories">
             <div className="space-y-6">
               {/* Add New Category */}
@@ -1327,6 +1581,91 @@ function AdminPanelEnhanced({ userData, setUserData }) {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Auth Modals */}
+        <AdminLoginModal
+          isOpen={showLoginModal}
+          onClose={() => {}}
+          onAuthSuccess={handleLoginSuccess}
+        />
+
+        {/* Session Warning Modal */}
+        {showSessionWarning && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl">
+              <div className="flex items-center gap-3 mb-4">
+                <AlertTriangle className="w-6 h-6 text-amber-500" />
+                <h3 className="text-lg font-semibold">Session Expiring Soon</h3>
+              </div>
+              <p className="text-gray-600 mb-4">
+                Your admin session will expire in {Math.floor(remainingTime / 60000)} minutes.
+                Would you like to extend it?
+              </p>
+              <div className="flex gap-3">
+                <Button onClick={handleLogout} variant="outline" className="flex-1">
+                  Logout
+                </Button>
+                <Button onClick={handleExtendSession} className="flex-1">
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Extend Session
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Change Password Modal */}
+        {showChangePasswordModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl">
+              <h3 className="text-lg font-semibold mb-4">Change Admin Password</h3>
+              {passwordError && (
+                <div className="p-3 bg-red-50 text-red-700 rounded-md text-sm mb-4">
+                  {passwordError}
+                </div>
+              )}
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="new-password">New Password</Label>
+                  <Input
+                    id="new-password"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Enter new password"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="confirm-password">Confirm Password</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm new password"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <Button
+                  onClick={() => {
+                    setShowChangePasswordModal(false)
+                    setNewPassword('')
+                    setConfirmPassword('')
+                    setPasswordError('')
+                  }}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button onClick={handleChangePassword} className="flex-1">
+                  Change Password
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
