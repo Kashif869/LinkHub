@@ -515,19 +515,20 @@ function AdminPanelEnhanced({ userData, setUserData }) {
                     placeholder="https://example.com/avatar.jpg"
                   />
                 </div>
-                </CardContent>
+              </CardContent>
+            </Card>
 
-                {/* Social Links */}
-                <Card className="mt-6">
-                <CardHeader>
-                 <CardTitle>Social Media Links</CardTitle>
-                 <CardDescription>
-                   Add your social media profiles for visitors to connect
-                 </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                 {/* Add New Social Link */}
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Social Links */}
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle>Social Media Links</CardTitle>
+                <CardDescription>
+                  Add your social media profiles for visitors to connect
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Add New Social Link */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                    <div>
                      <Label htmlFor="social-platform">Platform</Label>
                      <Select
@@ -1581,6 +1582,7 @@ function AdminPanelEnhanced({ userData, setUserData }) {
             </div>
           </TabsContent>
         </Tabs>
+      ) : null}
 
         {/* Auth Modals */}
         <AdminLoginModal
